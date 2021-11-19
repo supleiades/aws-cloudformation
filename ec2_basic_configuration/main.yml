@@ -28,7 +28,7 @@ Resources:
         - Key: Name
           Value: monitoting-pub-subnet
 
-  secGroupName:
+  SSHSG:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupName: monitring-ssh-allow
@@ -43,3 +43,36 @@ Resources:
       Tags:
         - Key: Name
           Value: monitring-ssh-allow
+
+  MainIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: monitoring-igw
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MainIGW
+      VpcId: !Ref VPC01
+
+  MainRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: monitoring-rt
+      VpcId: !Ref VPC01
+
+  AssRtIgw:
+    Type: AWS::EC2::GatewayRouteTableAssociation
+    Properties:
+      GatewayId: !Ref MainIGW
+      RouteTableId: !Ref MainRT
+
+  AssRtSubnet:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MainRT
+      SubnetId: !Ref PubSubnet
