@@ -1,0 +1,45 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  globalip4mylocal:
+    Type: String
+    Description: ex) xxx.xxx.xxx.xxx/32
+
+Resources: 
+  VPC01:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.8.0/21
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: monitoring-vpc
+
+  PubSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPC01
+      CidrBlock: 10.0.8.1/24
+      Tags:
+        - Key: Name
+          Value: monitoting-pub-subnet
+
+  secGroupName:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: monitring-ssh-allow
+      GroupDescription: monitring-ssh-allow
+      VpcId: !Ref VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+          CidrIp: 
+            !Ref globalip4mylocal
+      Tags:
+        - Key: Name
+          Value: monitring-ssh-allow
