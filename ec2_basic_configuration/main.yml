@@ -5,6 +5,18 @@ Parameters:
   globalip4mylocal:
     Type: String
     Description: ex) xxx.xxx.xxx.xxx/32
+  Ec2ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: Get the latest AmazonLinux2 AMI_ID.
+  Ec2InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: Free tier instance type.
+  Ec2KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance.
+    Type: String
+
 
 Resources: 
   VPC01:
@@ -65,14 +77,44 @@ Resources:
           Value: monitoring-rt
       VpcId: !Ref VPC01
 
-  AssRtIgw:
-    Type: AWS::EC2::GatewayRouteTableAssociation
+  MainR: 
+    Type: AWS::EC2::Route
     Properties:
-      GatewayId: !Ref MainIGW
       RouteTableId: !Ref MainRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MainIGW
 
   AssRtSubnet:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref MainRT
       SubnetId: !Ref PubSubnet
+
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref Ec2KeyName
+      DisableApiTermination: false
+      ImageId: !Ref Ec2ImageId
+      InstanceType: !Ref Ec2InstanceType
+      Monitoring: false
+      SecurityGroupIds:
+        - !Ref SSHSG
+      SubnetId: !Ref PubSubnet
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        # put your script here
+      Tags:
+        - Key: Name
+          Value: monitor-instance
+  
+  InstanceEip:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      InstanceId: !Ref myEC2Instance
+      Tags:
+        - Key: Name
+          Value: monitor-instance    
+  
+  
