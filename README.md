@@ -9,3 +9,9 @@ source venv/bin/activate
 pip install -r requirements.txt
 pre-commit install
 ```
+
+# ディレクトリ毎の説明
+
+| READMEリンク | 説明 |
+| :---------- | :-- |
+| [ec2_basic_configuration](ec2_basic_configuration/README.md) | ymlファイル1つで簡単にSSHできるEC2環境を作成する |
