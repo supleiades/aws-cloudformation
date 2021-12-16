@@ -1,0 +1,1 @@
+2つのVPC同士がTransitGatewayを経由して通信する環境を作成する
