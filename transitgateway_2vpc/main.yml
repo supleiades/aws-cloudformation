@@ -88,7 +88,7 @@ Resources:
     Properties:
       VpcId: !Ref VPCB
       Tags:
-        - Key: keyname
+        - Key: Name
           Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Btgw, rt ]]
   BTGWRouteTableAssoc:
     Type: AWS::EC2::SubnetRouteTableAssociation
@@ -98,9 +98,10 @@ Resources:
   BTGWRoute:
     Type: AWS::EC2::Route
     Properties:
-      RouteTableId: !Ref BTGWSubnet
+      RouteTableId: !Ref BTGWRouteTable
       DestinationCidrBlock: !FindInMap [ VpcParameter, VPCA, VpcCidr ]
       TransitGatewayId: !Ref TGW
+    DependsOn: BTGWRouteTableAssoc
   # --------------------------------------------------------------------------
   # Transit Gateway
   # --------------------------------------------------------------------------
@@ -109,7 +110,7 @@ Resources:
     Properties:
       AutoAcceptSharedAttachments: enable
       DefaultRouteTableAssociation: enable
-      DefaultRouteTablePropagation: enable
+      DefaultRouteTablePropagation: disable
       VpnEcmpSupport: enable
       DnsSupport: enable
       Tags:
