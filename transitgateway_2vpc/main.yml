@@ -1,0 +1,154 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+Parameters: 
+  SytemName: 
+    Type: String
+    Default: tmp
+  EnvName:
+    Type: String
+    Default: dev
+Mappings: 
+  VpcParameter:
+    VPCA:
+      VpcCidr: 10.8.0.0/16
+    VPCB:
+      VpcCidr: 10.9.0.0/16
+
+# Conditions: 
+Resources: 
+  # --------------------------------------------------------------------------
+  # VPC A
+  # --------------------------------------------------------------------------
+  VPCA:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [ VpcParameter, VPCA, VpcCidr ]
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, A, vpc ] ]
+  APubSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPCA
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPCA.CidrBlock, 1, 8 ]]
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Apub, sn ]]
+  ATGWSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPCA
+      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPCA.CidrBlock, 2, 8 ]]
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Atgw, sn ]]
+  # --------------------------------------------------------------------------
+  # VPC B
+  # --------------------------------------------------------------------------
+  VPCB:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: !FindInMap [ VpcParameter, VPCB, VpcCidr ]
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, B, vpc ] ]
+  BPubSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPCB
+      CidrBlock: !Select [ 0, !Cidr [ !GetAtt VPCB.CidrBlock, 1, 8 ]]
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Bpub, sn ]]
+  BTGWSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPCB
+      CidrBlock: !Select [ 1, !Cidr [ !GetAtt VPCB.CidrBlock, 2, 8 ]]
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Btgw, sn ]]
+  BTGWRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref VPCB
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, Btgw, rt ]]
+  BTGWRouteTableAssoc:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref BTGWSubnet
+      RouteTableId: !Ref BTGWRouteTable
+  BTGWRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref BTGWRouteTable
+      DestinationCidrBlock: !FindInMap [ VpcParameter, VPCA, VpcCidr ]
+      TransitGatewayId: !Ref TGW
+    DependsOn: BTGWRouteTableAssoc
+  # --------------------------------------------------------------------------
+  # Transit Gateway
+  # --------------------------------------------------------------------------
+  TGW:
+    Type: AWS::EC2::TransitGateway
+    Properties:
+      AutoAcceptSharedAttachments: enable
+      DefaultRouteTableAssociation: enable
+      DefaultRouteTablePropagation: disable
+      VpnEcmpSupport: enable
+      DnsSupport: enable
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, tgw ]]
+  VPCAattachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - !Ref ATGWSubnet
+      TransitGatewayId: !Ref TGW
+      VpcId: !Ref VPCA
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, A, attach ]]
+  VPCBattachment:
+    Type: AWS::EC2::TransitGatewayAttachment
+    Properties:
+      SubnetIds:
+        - !Ref BTGWSubnet
+      TransitGatewayId: !Ref TGW
+      VpcId: !Ref VPCB
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref SytemName, !Ref EnvName, B, attach ]]
+  # VPCATGWRoute:
+  #   Type: "AWS::EC2::Route"
+  #   Properties:
+  #     RouteTableId: !Ref RouteTableA
+  #     DestinationCidrBlock: 10.204.0.0/16
+  #     TransitGatewayId: !Ref TGW
+  #   DependsOn: VPCAattachment
+
+  # VPCBTGWRoute:
+  #   Type: "AWS::EC2::Route"
+  #   Properties:
+  #     RouteTableId: !Ref RouteTableB
+  #     DestinationCidrBlock: 10.192.0.0/16
+  #     TransitGatewayId: !Ref TGW
+  #   DependsOn: VPCBattachment
+# Outputs:
