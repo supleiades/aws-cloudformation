@@ -1,0 +1,72 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  ApplicationNames:
+    Description: App name to monitor.(1,Apps are comma separated. 2, App-Version are coron separated. ex<httpd:2.2.15>)
+    Type: String
+  SnsTopicArn:
+    Description: Notification destinarion SNSTopic.Arn
+    Type: String
+
+Resources:
+  # 修復アクションで使用するIAMロール
+  IamRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ssm-automation-role-for-ec2-applications-required
+      Description: "role for ssm automation: ec2 managedinstance applications required"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "ssm.amazonaws.com"
+            Action: "sts:AssumeRole"
+      Policies:
+        - PolicyName: sns-policy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              Effect: "Allow"
+              Action: "sns:Publish"
+              Resource: "*"
+
+  # Configルール
+  ConfigRule:
+    Type: AWS::Config::ConfigRule
+    Properties:
+      ConfigRuleName: ec2-managedinstance-applications-required
+      Description: "指定された全てのアプリケーションがインスタンスにインストールされていることを確認します。オプションで、プラットフォームを指定すると対象プラットフォームの範囲を制限します"
+      Source:
+        Owner: AWS
+        SourceIdentifier: EC2_MANAGEDINSTANCE_APPLICATIONS_REQUIRED
+      Scope:
+        ComplianceResourceTypes:
+          - "AWS::SSM::ManagedInstanceInventory"
+      InputParameters:
+        applicationNames: !Ref ApplicationNames
+        # platformType: (option)
+
+  # 修復アクション
+  RemediationConfiguration:
+    Type: AWS::Config::RemediationConfiguration
+    Properties:
+      Automatic: true
+      ConfigRuleName: !Ref ConfigRule
+      MaximumAutomaticAttempts: 1
+      RetryAttemptSeconds: 60
+      TargetId: "AWS-PublishSNSNotification"
+      TargetType: "SSM_DOCUMENT"
+      TargetVersion: "1"
+      Parameters:
+        AutomationAssumeRole:
+          StaticValue:
+           Values:
+             - !GetAtt [IamRole, "Arn"]
+        TopicArn:
+          StaticValue:
+            Values:
+            - !Ref SnsTopicArn
+        Message:
+          ResourceValue:
+            Value: RESOURCE_ID
