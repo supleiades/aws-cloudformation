@@ -1,0 +1,26 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  EmailName:
+    Description: Destination email address.
+    Type: String
+  SystemName:
+    Description: Common resource name.(It is listed at the beginning of the name)
+    Type: String
+    Default: tmp
+
+Resources: 
+  snsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: !Join [ "-", [ !Ref SystemName, snstopic ] ]
+      Subscription: 
+        - Endpoint: !Ref EmailName
+          Protocol: email
+      TopicName: !Join [ "-", [ !Ref SystemName, snstopic ] ]
+
+Outputs:
+  SNSTopicArn:
+    Value: !Ref snsTopic
