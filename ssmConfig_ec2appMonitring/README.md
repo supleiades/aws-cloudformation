@@ -24,3 +24,4 @@
 
 ## 参考
 [（classmethod）EC2インスタンスに特定アプリケーションがインストールされているかチェックして通知する](https://dev.classmethod.jp/articles/config-rule-ec2-application-check-and-sns-publish/)
+[ (classmethod) CloudFormationで作ったSNSトピックのメール送信先が手動変更されてたので整理した話](https://dev.classmethod.jp/articles/cloudformation-sns-topic-manual/)
