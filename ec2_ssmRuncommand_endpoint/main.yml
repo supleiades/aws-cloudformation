@@ -1,0 +1,186 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  globalip4mylocal:
+    Type: String
+    Description: ex) xxx.xxx.xxx.xxx/32
+  Ec2ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: Get the latest AmazonLinux2 AMI_ID.
+  Ec2InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: Free tier instance type.
+  Ec2KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance.
+    Type: String
+  Prefix:
+    Description: Prefix
+    Type: String
+    Default: template
+
+
+Resources: 
+  VPC01:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.8.0/21
+      EnableDnsSupport: true
+      Tags:
+        - Key: Name
+          Value: monitoring-vpc
+
+  PrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: !Select
+        - 0
+        - Fn::GetAZs: !Ref 'AWS::Region'
+      VpcId: !Ref VPC01
+      CidrBlock: 10.0.8.1/24
+      Tags:
+        - Key: Name
+          Value: monitoting-pub-subnet
+
+  SSHSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: monitring-ssh-allow
+      GroupDescription: monitring-ssh-allow
+      VpcId: !Ref VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+          CidrIp: 
+            !Ref globalip4mylocal
+      Tags:
+        - Key: Name
+          Value: monitring-ssh-allow
+
+  MainIGW:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: monitoring-igw
+
+  AttachIGW:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref MainIGW
+      VpcId: !Ref VPC01
+
+  MainRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+        - Key: Name
+          Value: monitoring-rt
+      VpcId: !Ref VPC01
+
+  MainR: 
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref MainRT
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref MainIGW
+
+  AssRtSubnet:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId: !Ref MainRT
+      SubnetId: !Ref PrivateSubnet
+
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref Ec2KeyName
+      DisableApiTermination: false
+      ImageId: !Ref Ec2ImageId
+      InstanceType: !Ref Ec2InstanceType
+      Monitoring: false
+      SecurityGroupIds:
+        - !Ref SSHSG
+      SubnetId: !Ref PrivateSubnet
+      UserData: !Base64 |
+        #!/bin/bash -ex
+        # put your script here
+      Tags:
+        - Key: Name
+          Value: monitor-instance
+      IamInstanceProfile: AmazonSSMManagedInstanceCore
+  
+
+## endpoint sg
+  SSMEndpointSG:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      VpcId: !Ref VPC01
+      GroupName: !Sub "${Prefix}-ssm-endpoint-sg"
+      GroupDescription: !Sub "${Prefix}-ssm-endpoint-sg"
+      Tags:
+        - Key: Name
+          Value: !Sub "${Prefix}-ssm-endpoint-sg"
+
+# CidrIpでVPCのIPを指定したいが、これで作成可能か未検証
+  SSMEndpointSGIngress:
+    Type: "AWS::EC2::SecurityGroupIngress"
+    Properties:
+      GroupId: !Ref SSMEndpointSG
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      # 以下修正必須
+      CidrIp: 0.0.0.0/0
+      # CidrIp: 
+      #   Fn::GetAtt 
+      #     - VPC01.CidrBlock
+
+## endpoint
+  SSMEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssm"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      VpcId: !Ref VPC01
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref SSMEndpointSG
+  EC2MessageEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2messages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      VpcId: !Ref VPC01
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref SSMEndpointSG
+  # EC2Endpoint:
+  #   Type: AWS::EC2::VPCEndpoint
+  #   Properties:
+  #     ServiceName: !Sub "com.amazonaws.${AWS::Region}.ec2"
+  #     VpcEndpointType: Interface
+  #     PrivateDnsEnabled: true
+  #     VpcId: !Ref VPC
+  #     SubnetIds:
+  #       - !Ref PrivateSubnet
+  #     SecurityGroupIds:
+  #       - !Ref SSMEndpointSG
+  SSMAgentEndpoint:
+    Type: AWS::EC2::VPCEndpoint
+    Properties:
+      ServiceName: !Sub "com.amazonaws.${AWS::Region}.ssmmessages"
+      VpcEndpointType: Interface
+      PrivateDnsEnabled: true
+      VpcId: !Ref VPC01
+      SubnetIds:
+        - !Ref PrivateSubnet
+      SecurityGroupIds:
+        - !Ref SSMEndpointSG
