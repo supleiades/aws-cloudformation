@@ -1,0 +1,36 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "Creating an SG that refers to an existing VPC and allows communication within the VPC with any"
+
+Parameters:
+  SelectVPC:
+    Description: Please select an Existing VPC.
+    Type: AWS::EC2::VPC::Id
+  SelectVPCCidr:
+    Description: Specify the CIDR of the VPC to which the subnet is associated　(ex ---,---,---,---/--).
+    Type: String
+  Prefix:
+    Description: Prefix
+    Type: String
+    Default: template
+  Env:
+    Description: Env
+    Type: String
+    Default: dev
+
+Resources:
+  secGroupName:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join [ "-", [ !Ref Prefix, !Ref Env, sg ]]
+      GroupDescription: Allow all notifications in your VPC.
+      VpcId: !Ref SelectVPC
+      SecurityGroupIngress:
+        - IpProtocol: -1
+          CidrIp: !Ref SelectVPCCidr
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref Prefix, !Ref Env, sg ]]
+
+Outputs:
+  VPCCidr:
+    Value: !Ref SelectVPC
