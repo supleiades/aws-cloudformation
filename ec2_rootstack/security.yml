@@ -1,0 +1,25 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  SSHSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: monitring-ssh-allow
+      GroupDescription: monitring-ssh-allow
+      VpcId: !ImportValue VPC01
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          ToPort: 22
+          FromPort: 22
+          CidrIp:
+            !ImportValue globalip4mylocal
+      Tags:
+        - Key: Name
+          Value: monitring-ssh-allow
+
+Outputs:
+  SSHSG:
+    Value: !Ref SSHSG

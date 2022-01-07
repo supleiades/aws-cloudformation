@@ -1,0 +1,36 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  globalip4mylocal:
+    Type: String
+    Description: ex) xxx.xxx.xxx.xxx/32
+
+  Ec2ImageId:
+    Type: AWS::SSM::Parameter::Value<AWS::EC2::Image::Id>
+    Default: /aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2
+    Description: Get the latest AmazonLinux2 AMI_ID.
+
+  Ec2InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: Free tier instance type.
+
+  Ec2KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance.
+    Type: String
+
+Mappings:
+Conditions:
+Resources:
+Outputs:
+  globalip4mylocal:
+    Value: !Ref globalip4mylocal
+  Ec2ImageId:
+    Value: !Ref Ec2ImageId
+  Ec2InstanceType:
+    Value: !Ref Ec2InstanceType
+  Ec2KeyName:
+    Value: !Ref Ec2KeyName
