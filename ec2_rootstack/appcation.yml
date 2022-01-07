@@ -10,7 +10,7 @@ Resources:
       KeyName: !ImportValue Ec2KeyName
       DisableApiTermination: false
       ImageId: !ImportValue Ec2ImageId
-      InstanceType: !Ref Ec2InstanceType
+      InstanceType: !ImportValue Ec2InstanceType
       Monitoring: false
       SecurityGroupIds:
         - !ImportValue SSHSG
