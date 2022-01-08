@@ -1,0 +1,28 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: ---
+
+Parameters:
+  TargetInstanceID:
+    Type: AWS::EC2::Instance::Id
+  SystemName:
+    Type: String
+    Default: template
+  CommandDocmentName:
+    Type: String
+    Default: AmazonInspector-ManageAWSAgent
+      
+
+Resources: 
+  SsmAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Join [ "-", [ !Ref SystemName, ssmassociation ] ]
+      Name: !Ref CommandDocmentName
+      WaitForSuccessTimeoutSeconds: 600
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref TargetInstanceID ]
+      Parameters:
+        Operation: 
+          - Install
