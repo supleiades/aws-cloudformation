@@ -150,10 +150,7 @@ Resources:
     Type: "AWS::EC2::VPCEndpoint"
     Properties:
       ServiceName: !Sub "com.amazonaws.${AWS::Region}.s3"
-      VpcEndpointType: Interface
-      # PrivateDnsEnabled: true  # interface型のs3privatelinkでは使用できない
+      VpcEndpointType: Gateway
       VpcId: !Ref VPC01
-      SubnetIds:
-        - !Ref PrivateSubnet
-      SecurityGroupIds:
-        - !Ref SSMEndpointSG
+      RouteTableIds:
+        - !Ref MainRT
