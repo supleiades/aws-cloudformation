@@ -35,6 +35,13 @@ Parameters:
     Type: String
     Default: gp2
     AllowedValues: [gp2, gp3, io1, io2, standard]
+  AmazonLinuxOSBool:
+    Description: Enter true or false. True if the OS is Amazon Linux, false otherwise.
+    Type: String
+    AllowedValues: [true, false]
+
+Conditions:
+  IsAmazonLinuxOS: !Equals [!Ref AmazonLinuxOSBool, true]
 
 Resources:
   myEC2Instance:
@@ -51,7 +58,8 @@ Resources:
         # put your script here
       BlockDeviceMappings:
       # - DeviceName: /dev/xvda # amazonlinux1,amazonlinux2
-      - DeviceName: /dev/sda1 # windows,rhel,ubuntu,suse,cent
+      # - DeviceName: /dev/sda1 # windows,rhel,ubuntu,suse,cent
+      - DeviceName: !If [IsAmazonLinuxOS, "/dev/xvda", "/dev/sda1"]
         Ebs:
           VolumeSize: !Ref EbsRootVolumeSize
           VolumeType: !Ref EbsRootVolumeType
