@@ -26,6 +26,15 @@ Parameters:
   CommandDocmentName:
     Type: String
     Default: AmazonInspector-ManageAWSAgent
+  EbsRootVolumeSize:
+    Description: Default value for each OS is 30GB=Windows, 10GB=Rhel,Suse, 8GB=AmazonLinux/Cent/Ubuntu.
+    Type: Number
+    Default: 30
+  EbsRootVolumeType:
+    Description: Enter gp2, gp3, io1, io2, or standard. default is gp2.
+    Type: String
+    Default: gp2
+    AllowedValues: [gp2, gp3, io1, io2, standard]
 
 Resources:
   myEC2Instance:
@@ -40,6 +49,12 @@ Resources:
       UserData: !Base64 |
         #!/bin/bash -ex
         # put your script here
+      BlockDeviceMappings:
+      # - DeviceName: /dev/xvda # amazonlinux1,amazonlinux2
+      - DeviceName: /dev/sda1 # windows,rhel,ubuntu,suse,cent
+        Ebs:
+          VolumeSize: !Ref EbsRootVolumeSize
+          VolumeType: !Ref EbsRootVolumeType
       Tags:
         - Key: Name
           Value: !Join [ "-", [ !Ref Prefix, instance ] ]
