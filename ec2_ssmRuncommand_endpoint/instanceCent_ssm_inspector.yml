@@ -1,0 +1,116 @@
+---
+
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create ec2 with ssm agent present by default and inspector installed.
+
+Parameters:
+  OsVersion:
+    Type: String
+    Description: Please select the OS version of the specified AMI.
+    AllowedValues: ["CentOS6.x", "CentOS7.x", "CentOS8.x"]
+  OsCpuIsaType:
+    Type: String
+    Description: Selects the CPU type used by the specified AMI.
+    AllowedValues: ["Intel64bit", "ARM64bit", "Intel32bit"]
+  Ec2AmiId:
+    Type: AWS::EC2::Image::Id
+    Default: ami-071eff3a38d81a68e # centos6.9
+    Description: Please specify AMI for centos.
+  Prefix:
+    Description: Prefix
+    Type: String
+    Default: template
+  Ec2InstanceType:
+    Type: String
+    Default: t3.micro
+    Description: Free tier instance type.
+  Ec2KeyName:
+    Description: The EC2 Key Pair to allow SSH access to the instance.
+    Type: AWS::EC2::KeyPair::KeyName
+  SubnetID:
+    Description: Specify the subnet where you want to place EC2.
+    Type: AWS::EC2::Subnet::Id
+  CommandDocmentName:
+    Type: String
+    Default: AmazonInspector-ManageAWSAgent
+  EbsRootVolumeSize:
+    Description: Default value for each OS is 30GB=Windows, 10GB=Rhel,Suse, 8GB=AmazonLinux/Cent/Ubuntu.
+    Type: Number
+    Default: 30
+  EbsRootVolumeType:
+    Description: Enter gp2, gp3, io1, io2, or standard. default is gp2.
+    Type: String
+    Default: gp2
+    AllowedValues: [gp2, gp3, io1, io2, standard]
+
+
+Mappings:
+  InstororURL:
+    CentOS8.x:
+      Intel64bit: latest/linux_amd64/amazon-ssm-agent.rpm
+      ARM64bit: latest/linux_arm64/amazon-ssm-agent.rpm
+    CentOS7.x:
+      Intel64bit: latest/linux_amd64/amazon-ssm-agent.rpm
+      ARM64bit: latest/linux_arm64/amazon-ssm-agent.rpm
+    CentOS6.x:
+      Intel64bit: 3.0.1390.0/linux_amd64/amazon-ssm-agent.rpm
+      Intel32bit: 3.0.1390.0/linux_386/amazon-ssm-agent.rpm
+  ManagedCommand:
+    CentOS8.x:
+      command: dnf
+    CentOS7.x:
+      command: yum
+    CentOS6.x:
+      command: yum
+
+
+Resources:
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      KeyName: !Ref Ec2KeyName
+      DisableApiTermination: false
+      ImageId: !Ref Ec2AmiId
+      InstanceType: !Ref Ec2InstanceType
+      Monitoring: false
+      SubnetId: !Ref SubnetID
+      UserData:
+        Fn::Base64: !Sub
+        - |
+          #!/bin/bash
+          cd /tmp
+          sudo ${managedCommand} install -y https://s3.${AWS::Region}.amazonaws.com/amazon-ssm-${AWS::Region}/${ssmUrl}
+          sudo start amazon-ssm-agent
+        - ssmUrl: !FindInMap [InstororURL, !Ref OsVersion, !Ref OsCpuIsaType]
+          managedCommand: !FindInMap [ManagedCommand, !Ref OsVersion, command]
+        # Fn::Base64 : !Sub
+        # - |
+        #   #!/bin/bash -v
+        #   echo ${url}
+        # - url : !FindInMap [InstororURL, !Ref OsVersion, !Ref OsCpuIsaType]
+      BlockDeviceMappings:
+      # - DeviceName: /dev/xvda # amazonlinux1,amazonlinux2
+        - DeviceName: /dev/sda1 # windows,rhel,ubuntu,suse,cent
+          Ebs:
+            VolumeSize: !Ref EbsRootVolumeSize
+            VolumeType: !Ref EbsRootVolumeType
+      Tags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref Prefix, instance ] ]
+      IamInstanceProfile: AmazonSSMManagedInstanceCore
+
+  # Inspector install
+  ## InspectorV2だと、inspectorインストール不要でssmエージェントのみで情報取得可能？
+  SsmAssociation:
+    Type: AWS::SSM::Association
+    Properties:
+      AssociationName: !Join [ "-", [ !Ref Prefix, ssmassociation ] ]
+      Name: !Ref CommandDocmentName
+      WaitForSuccessTimeoutSeconds: 600
+      Targets:
+        - Key: InstanceIds
+          Values: [ !Ref myEC2Instance ]
+      Parameters:
+        Operation:
+          - Install
+
